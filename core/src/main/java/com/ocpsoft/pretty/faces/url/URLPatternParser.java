@@ -33,6 +33,7 @@ import com.ocpsoft.pretty.faces.el.Expressions;
 public class URLPatternParser
 {
    private final String originalPattern;
+   private boolean elPattern;
    private URL urlPattern = null;
    private List<Segment> pathSegments = new ArrayList<Segment>();
    private List<PathParameter> pathParameters = new ArrayList<PathParameter>();
@@ -50,6 +51,11 @@ public class URLPatternParser
       originalPattern = pattern;
       Matcher expressionMatcher = Pattern.compile(Expressions.EL_REGEX).matcher(pattern);
       StringBuffer segmentableExpressions = new StringBuffer();
+      
+      elPattern = false;
+      if (pattern.indexOf('|') != -1) {
+         elPattern = true;
+      }
 
       /*
        * Extract path parameters
@@ -57,6 +63,7 @@ public class URLPatternParser
       int paramIndex = 0;
       while (expressionMatcher.find())
       {
+         elPattern = true;
          String expression = expressionMatcher.group(1);
          PathParameter param = ExpressionProcessorRunner.process(expression);
          param.setPosition(paramIndex);
@@ -111,7 +118,11 @@ public class URLPatternParser
     */
    public boolean matches(final URL target)
    {
-      return Pattern.compile(urlPattern.toURL()).matcher(target.toURL()).matches();
+      if (elPattern) {
+         return Pattern.compile(urlPattern.toURL()).matcher(target.toURL()).matches();
+      } else {
+         return urlPattern.toURL().equals(target.toURL());
+      }
    }
 
    /**
@@ -291,4 +302,13 @@ public class URLPatternParser
    {
       return originalPattern;
    }
+
+   /**
+    * @return whether the URL pattern is an expression language
+    */
+   public boolean isElPattern()
+   {
+      return elPattern;
+   }
+   
 }
