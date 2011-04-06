@@ -1,92 +1,99 @@
 /*
- * Copyright 2010 Lincoln Baxter, III
- * 
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * JBoss, Home of Professional Open Source
+ * Copyright 2011, Red Hat, Inc., and individual contributors
+ * by the @authors tag. See the copyright.txt in the distribution for a
+ * full listing of individual contributors.
+ *
+ * This is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU Lesser General Public License as
+ * published by the Free Software Foundation; either version 2.1 of
+ * the License, or (at your option) any later version.
+ *
+ * This software is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this software; if not, write to the Free
+ * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-
 package com.ocpsoft.pretty.faces.rewrite;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import com.ocpsoft.pretty.faces.config.rewrite.RewriteRule;
-import com.ocpsoft.pretty.faces.rewrite.processor.CaseProcessor;
-import com.ocpsoft.pretty.faces.rewrite.processor.CustomClassProcessor;
-import com.ocpsoft.pretty.faces.rewrite.processor.RegexProcessor;
-import com.ocpsoft.pretty.faces.rewrite.processor.TrailingSlashProcessor;
-import com.ocpsoft.pretty.faces.rewrite.processor.UrlProcessor;
+import com.ocpsoft.pretty.PrettyContext;
+import com.ocpsoft.pretty.faces.spi.RewriteProvider;
+import com.ocpsoft.pretty.faces.util.ServiceLoader;
 
 /**
- * Process URL rewrites based on configuration
+ * @author <a href="mailto:lincolnbaxter@gmail.com">Lincoln Baxter, III</a>
  * 
- * @author Lincoln Baxter, III <lincoln@ocpsoft.com>
  */
-public class RewriteEngine
+public class RewriteEngine implements RewriteProvider
 {
-   private static List<Processor> processors;
-
-   static
+   private static List<RewriteProvider> providers = null;
+   private final Comparator<RewriteProvider> providerPriorityComparator = new Comparator<RewriteProvider>()
    {
-      List<Processor> list = new ArrayList<Processor>();
-      list.add(new RegexProcessor());
-      list.add(new CaseProcessor());
-      list.add(new TrailingSlashProcessor());
-      list.add(new CustomClassProcessor());
-      list.add(new UrlProcessor());
-      processors = Collections.unmodifiableList(list);
+
+      public int compare(final RewriteProvider l, final RewriteProvider r)
+      {
+         // TODO implement rewrite priority
+         return 0;
+      }
+   };
+
+   private void init()
+   {
+      if (providers == null)
+      {
+         ServiceLoader<RewriteProvider> loader = ServiceLoader.load(RewriteProvider.class);
+
+         providers = new ArrayList<RewriteProvider>();
+         for (RewriteProvider provider : loader)
+         {
+            providers.add(provider);
+         }
+
+         Collections.sort(providers, providerPriorityComparator);
+      }
    }
 
-   /**
-    * Rewrite the given URL using the provided {@link RewriteRule} object as a set of rules.
-    * 
-    * @return The rewritten URL, or the unchanged URL if no action was taken.
-    */
-   public String processInbound(final HttpServletRequest request, final HttpServletResponse response,
-            final RewriteRule rule, final String url)
+   public RewriteType rewriteInbound(final PrettyContext context, final HttpServletRequest request,
+            final HttpServletResponse response)
    {
-      String result = url;
-      if ((rule != null) && rule.isInbound() && rule.matches(url))
+      init();
+      for (RewriteProvider provider : providers)
       {
-         for (Processor p : processors)
+         RewriteType result = provider.rewriteInbound(context, request, response);
+         if (!RewriteType.CONTINUE.equals(result))
          {
-            result = p.processInbound(request, response, rule, result);
+            return result;
          }
+         else if (RewriteType.FINAL.equals(result))
+            break;
+      }
+      return RewriteType.CONTINUE;
+   }
+
+   public String rewriteOutbound(final PrettyContext context, final HttpServletRequest request,
+            final HttpServletResponse response,
+            final String url)
+   {
+      init();
+
+      String result = url;
+      for (RewriteProvider provider : providers)
+      {
+         result = provider.rewriteOutbound(context, request, response, result);
       }
       return result;
    }
-
-   /**
-    * Rewrite the given URL using the provided {@link RewriteRule} object. Process the URL only if the rule is set to
-    * outbound="true"
-    * 
-    * @return The rewritten URL, or the unchanged URL if no action was taken.
-    */
-   public String processOutbound(final HttpServletRequest request, final HttpServletResponse response,
-            final RewriteRule rule, final String url)
-   {
-      String result = url;
-      if ((rule != null) && rule.isOutbound() && rule.matches(url))
-      {
-         for (Processor p : processors)
-         {
-            result = p.processOutbound(request, response, rule, result);
-         }
-      }
-      return result;
-   }
-
 }

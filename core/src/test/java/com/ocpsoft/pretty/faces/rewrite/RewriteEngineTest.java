@@ -27,7 +27,7 @@ import com.ocpsoft.pretty.faces.rewrite.processor.MockCustomClassProcessor;
 public class RewriteEngineTest
 {
    String url = "/my/foo/is/COOL";
-   RewriteEngine rewriteEngine = new RewriteEngine();
+   RewriteProcessorRunner rewriteEngine = new RewriteProcessorRunner();
 
    @Test
    public void testRegex() throws Exception

@@ -16,28 +16,44 @@
 
 package com.ocpsoft.pretty.faces.config.rewrite;
 
+import com.ocpsoft.pretty.faces.rewrite.RewriteType;
+
 /**
  * Enumeration describing different methods of Inbound Redirecting
  * 
  * @author Lincoln Baxter, III <lincoln@ocpsoft.com>
  */
-public enum Redirect {
+public enum Redirect
+{
     PERMANENT(301), TEMPORARY(302), CHAIN;
 
-    private final int status;
+   private final int status;
 
-    private Redirect()
-    {
-        status = -1;
-    }
+   private Redirect()
+   {
+      status = -1;
+   }
 
-    private Redirect(final int status)
-    {
-        this.status = status;
-    }
+   private Redirect(final int status)
+   {
+      this.status = status;
+   }
 
-    public int getStatus()
-    {
-        return status;
-    }
+   public RewriteType getRewriteType()
+   {
+      switch (this)
+      {
+      case PERMANENT:
+         return RewriteType.REDIRECT_301;
+      case TEMPORARY:
+         return RewriteType.REDIRECT_302;
+      default:
+         return RewriteType.FORWARD;
+      }
+   }
+
+   public int getStatus()
+   {
+      return status;
+   }
 }
